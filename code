@@ -1,0 +1,71 @@
+import numpy as np
+import sympy as sp
+
+def get_dh_parameters():
+    """Asks user for DH parameters and determines if they are values or symbolic variables."""
+    num_joints = int(input("Enter the number of joints: "))
+    dh_params = []
+    print("Type 'v' if it's a variable, otherwise enter the numeric values.\n")
+
+    for i in range(num_joints):
+        print(f"\nEnter DH parameters for joint {i+1}:")
+        
+        theta = input(" θ =  ")
+        d = input(" d =   ")
+        a = input(" a =  ")
+        alpha = input(" α =  ")
+
+        # Convert input to symbolic or numeric values
+        theta = sp.symbols(f'θ{i+1}') if theta.lower() == 'v' else round((np.pi * float(theta)) / 180, 2)
+        d = sp.symbols(f'd{i+1}') if d.lower() == 'v' else round(float(d), 2)
+        a = sp.symbols(f'a{i+1}') if a.lower() == 'v' else round(float(a), 2)
+        alpha = sp.symbols(f'α{i+1}') if alpha.lower() == 'v' else round((np.pi * float(alpha)) / 180, 2)
+
+        dh_params.append([theta, d, a, alpha])
+    
+    return np.array(dh_params, dtype=object)  # Use dtype=object to handle symbolic values
+
+def transformation_matrices(M):
+    """Computes transformation matrices from the DH table and factorizes expressions."""
+    num_joints = len(M)
+    Mat = sp.eye(4)  # Initialize as identity matrix
+
+    for i in range(num_joints):
+        theta, d, a, alpha = M[i]  # Extract DH parameters
+
+        # Handle symbolic and numeric values
+        cost = sp.symbols(f'C{i+1}') if isinstance(theta, sp.Basic) else round(np.cos(theta), 2)
+        sint = sp.symbols(f's{i+1}') if isinstance(theta, sp.Basic) else round(np.sin(theta), 2)
+        cosp = sp.cos(alpha) if isinstance(alpha, sp.Basic) else round(np.cos(alpha), 2)
+        sinp = sp.sin(alpha) if isinstance(alpha, sp.Basic) else round(np.sin(alpha), 2)
+
+        # Transformation matrix
+        Matrix = sp.Matrix([
+            [cost, -sint * cosp, sint * sinp, a * cost],
+            [sint, cost * cosp, -cost * sinp, a * sint],
+            [0, sinp, cosp, d],
+            [0, 0, 0, 1]
+        ])
+
+        # Apply trigonometric simplification (trigsimp) and rounding
+        Matrix = Matrix.applyfunc(lambda x: sp.trigsimp(x) if isinstance(x, sp.Basic) else round(x, 2))
+
+        print(f"\nSimplified Transformation Matrix {i+1}:")
+        sp.pprint(Matrix, use_unicode=True)
+
+        Mat = Mat * Matrix  # Multiply transformation matrices
+    
+
+    # Apply trigsimp on the whole transformation matrix
+    return [Mat.applyfunc(lambda x: sp.trigsimp(x) if isinstance(x, sp.Basic) else round(x, 2)),Mat]
+
+# Get DH table from user
+dh_table = get_dh_parameters()
+print("\nDH Table:")
+sp.pprint(sp.Matrix(dh_table), use_unicode=True)
+
+# Compute and simplify transformation matrices
+final_matrix = transformation_matrices(dh_table)[0]
+
+print("\nSimplified Whole System Transformation Matrix:")
+sp.pprint(final_matrix, use_unicode=True)
