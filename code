@@ -12,8 +12,8 @@ def get_dh_parameters():
         
         theta = input(" θ =  ")
         d = input(" d =   ")
-        a = input(" a =  ")
         alpha = input(" α =  ")
+        a = input(" a =  ")
 
         # Convert input to symbolic or numeric values
         theta = sp.symbols(f'θ{i+1}') if theta.lower() == 'v' else round((np.pi * float(theta)) / 180, 2)
@@ -57,7 +57,37 @@ def transformation_matrices(M):
     
 
     # Apply trigsimp on the whole transformation matrix
-    return [Mat.applyfunc(lambda x: sp.trigsimp(x) if isinstance(x, sp.Basic) else round(x, 2)),Mat]
+    return Mat.applyfunc(lambda x: x if isinstance(x, sp.Basic) else round(x, 2))
+
+def simplify_trig_expressions(mat):
+    """Simplifies common trigonometric identities in a given matrix."""
+    substitutions = {
+        1.0 * sp.Symbol('C1') * sp.Symbol('C2') - 1.0 * sp.Symbol('s1') * sp.Symbol('s2'): sp.Symbol('C12'),
+        1.0 * sp.Symbol('C1') * sp.Symbol('s2') + 1.0 * sp.Symbol('s1') * sp.Symbol('C2'): sp.Symbol('s12'),
+        1.0 * sp.Symbol('C1') * sp.Symbol('C2') + 1.0 * sp.Symbol('s1') * sp.Symbol('s2'): sp.Symbol('C(1+2)'),
+        1.0 * sp.Symbol('s1') * sp.Symbol('C2') - 1.0 * sp.Symbol('C1') * sp.Symbol('s2'): sp.Symbol('s(1+2)'),
+        1.0 * sp.Symbol('C1') * sp.Symbol('C2') * sp.Symbol('C3') - 
+        1.0 * sp.Symbol('C1') * sp.Symbol('s2') * sp.Symbol('s3') - 
+        1.0 * sp.Symbol('s1') * sp.Symbol('s2') * sp.Symbol('C3') - 
+        1.0 * sp.Symbol('s1') * sp.Symbol('C2') * sp.Symbol('s3'): sp.Symbol('C123'),
+        
+        1.0 * sp.Symbol('s1') * sp.Symbol('s2') * sp.Symbol('s3') + 
+        1.0 * sp.Symbol('s1') * sp.Symbol('C2') * sp.Symbol('C3') + 
+        1.0 * sp.Symbol('C1') * sp.Symbol('s2') * sp.Symbol('C3') + 
+        1.0 * sp.Symbol('C1') * sp.Symbol('C2') * sp.Symbol('s3'): sp.Symbol('s123'),
+        1.00000000000000 : sp.Symbol('1'),
+        1.0 : sp.Symbol(''),
+    }
+
+    return mat.subs(substitutions)
+
+def matrix(matrix1):
+    for i in range(3):
+        for j in range(3):
+            print(f'r{i+1}{j+1} =',matrix1[i,j])
+    for i in range(3):
+        print(f'p{i+1} =',matrix1[i,3])
+
 
 # Get DH table from user
 dh_table = get_dh_parameters()
@@ -65,7 +95,17 @@ print("\nDH Table:")
 sp.pprint(sp.Matrix(dh_table), use_unicode=True)
 
 # Compute and simplify transformation matrices
-final_matrix = transformation_matrices(dh_table)[0]
+matrices= transformation_matrices(dh_table)
+simp=simplify_trig_expressions(matrices)
+print(matrices.shape)
+final_matrix = sp.Matrix([
+    ["r11","r12","r13","p1"],
+    ["r21","r22","r23","p2"],
+    ["r31","r32","r33","p3"],
+    ["0","0","0","1"]
+    ])
 
 print("\nSimplified Whole System Transformation Matrix:")
-sp.pprint(final_matrix, use_unicode=True)
+sp.pprint(final_matrix,wrap_line=False, use_unicode=True)
+
+matrix(simp)
